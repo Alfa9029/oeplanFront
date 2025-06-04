@@ -1,5 +1,4 @@
 // shared/types/task.ts
-import type { User, SimpleUser } from './auth/user'; // Assume que User e SimpleUser estão definidos aqui
 
 export interface Task {
   uuid: string;
@@ -28,3 +27,11 @@ export interface Task {
 //   file_type: string; // ex: 'application/pdf', 'image/png'
 //   uploaded_at: string;
 // }
+
+export type SimpleUser = {
+  uuid: string;
+  username: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+};

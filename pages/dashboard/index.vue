@@ -137,12 +137,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import type { Task } from '~/shared/types/task';
-import type { User, SimpleUser } from '~/shared/types/auth/user'; // Import SimpleUser
-import TaskCard from '~/components/TaskCard.vue';
-import CreateTaskForm from '~/components/CreateTaskForm.vue'; // Novo componente
+import type { Task } from '~/shared/types/task.ts'; // Ajuste o caminho para o arquivo Task
+import type { User, SimpleUser } from '~/shared/types/auth/user.ts'; // Import SimpleUser
+import TaskCard from '../../components/TaskCard.vue';
+import CreateTaskForm from '../../components/CreateTaskForm.vue'; // Novo componente
 import { useRouter } from 'vue-router';
-import { useAuth } from '~/composables/auth';
+import { useAuth } from '../../composables/auth';
 
 definePageMeta({
   layout: 'default',
@@ -153,7 +153,7 @@ useHead({
 });
 
 const router = useRouter();
-const { state: authState } = useAuth();
+const auth = useAuth();
 
 const taskDialog = ref(false);
 const editingTask = ref<Task | null>(null); // Para popular o formulário ao editar

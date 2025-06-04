@@ -1,22 +1,24 @@
 // nuxt.config.ts
+import { resolve } from 'pathe'; // Importe 'resolve' de 'pathe'
+
 export default defineNuxtConfig({
-  // Data de compatibilidade, pode ser a data atual ou uma recente
+  // Data de compatibilidade
   compatibilityDate: "2024-07-05",
 
-  // Habilita as ferramentas de desenvolvimento do Nuxt
+  // Ferramentas de desenvolvimento
   devtools: { enabled: true },
 
-  // CSS: Importa os estilos do Vuetify, ícones MDI e seu CSS global
+  // CSS
   css: [
-    "vuetify/styles", // Estilos base do Vuetify
-    "@mdi/font/css/materialdesignicons.min.css", // Ícones Material Design
-    "~/assets/css/global.css", // Seu CSS global para overrides e variáveis
+    "vuetify/styles",
+    "@mdi/font/css/materialdesignicons.min.css",
+    "~/assets/css/global.css",
   ],
 
-  // Módulos a serem usados pelo Nuxt
+  // Módulos
   modules: [
     [
-      "vuetify-nuxt-module", // Módulo de integração do Vuetify
+      "vuetify-nuxt-module",
       {
         vuetifyOptions: {
           theme: {
@@ -56,13 +58,21 @@ export default defineNuxtConfig({
     ],
   ],
 
-  // Necessário para o Vuetify 3 funcionar corretamente com o Vite (usado pelo Nuxt 3)
+  // Build
   build: {
     transpile: ['vuetify'],
   },
 
+  // Alias para pastas personalizadas
+  alias: {
+    // Adiciona um alias para a pasta 'shared'
+    // Agora você pode importar de '~/shared/...' em qualquer lugar do seu projeto
+    '~/shared': resolve(__dirname, './shared'),
+    // Você também pode usar '@shared' ou outro nome se preferir:
+    // '@shared': resolve(__dirname, './shared'),
+  },
 
-  // Configurações de runtime para variáveis de ambiente (se necessário)
+  // Configurações de runtime (se necessário)
   // runtimeConfig: {
   //   public: {
   //     apiBase: process.env.NUXT_PUBLIC_API_BASE || '/api',

@@ -62,13 +62,9 @@
               </v-btn>
             </v-form>
             <div class="text-center">
-              <p class="text-body-2">
-                Não tem conta?
-                <NuxtLink to="/register" class="text-primary font-weight-medium" style="text-decoration: none;">Cadastre-se</NuxtLink>
-              </p>
                <p class="text-body-2 mt-2">
                 Ou entre com
-                <NuxtLink to="/magic-login" class="text-primary font-weight-medium" style="text-decoration: none;">Magic Link</NuxtLink>
+                <NuxtLink to="/magic-link" class="text-primary font-weight-medium" style="text-decoration: none;">Magic Link</NuxtLink>
               </p>
               <p class="text-caption mt-6">
                 Precisa de ajuda? <a href="#" class="text-primary" style="text-decoration: none;">Entre em contato</a>

@@ -2,15 +2,11 @@
 import { useAuth } from '~/composables/auth';
 
 export default defineNuxtPlugin(async (nuxtApp) => {
-  // Obtém a função initState do seu composable de autenticação
-  const { initState } = useAuth();
+  // Esta versão chamava `initializeAuth` que, por sua vez, poderia ser
+  // chamada automaticamente também dentro do `useAuth`, causando múltiplas execuções.
+  const { initializeAuth } = useAuth();
 
-  // Executa a inicialização do estado de autenticação apenas no lado do cliente.
-  // A verificação 'process.client' dentro de initState no composable também
-  // garante que operações específicas do cliente (como acesso a cookies)
-  // sejam seguras.
-  if (process.client) {
-    initState();
-    console.log('[AuthPluginMock] Estado de autenticação (mock) inicializado no cliente através do plugin.');
+  if (process.client) { // Redundante, pois .client.ts já garante
+    await initializeAuth();
   }
 });

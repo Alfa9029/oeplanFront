@@ -1,202 +1,210 @@
-// composables/auth.ts
-import { ref, computed } from 'vue'; // Removido onMounted que não estava a ser usado aqui
-// Update the path below to the correct relative path if needed
-import type { User } from '../shared/types/auth/user';
-import type { UserLogin } from '../shared/types/auth/user-login';
-import type { UserRegister } from '../shared/types/auth/user-register';
+import { ref, computed } from 'vue';
+import type { User } from '~/shared/types/auth/user';
+import type { UserLogin } from '~/shared/types/auth/user-login';
 
-interface AuthState {
-  isLoggedIn: boolean;
-  user?: User;
-  token?: string | null;
-  error?: string | null;
-  loading: boolean;
+// --- Configuração do Mock ---
+const USE_MOCK_BACKEND = true;
+// --------------------------
+
+interface MagicLinkRequestResponse {
+  success: boolean;
+  message?: string;
 }
 
-// Estado global reativo para autenticação
-const authState = ref<AuthState>({
-  isLoggedIn: false,
-  user: undefined,
-  token: null,
-  error: null,
-  loading: false,
-});
+interface MagicLinkVerifyResponse {
+  success: boolean;
+  user?: User;
+  token?: string;
+  message?: string;
+}
 
-// Mock de utilizadores para simulação
+interface LoginResponse {
+  success: boolean;
+  user?: User;
+  token?: string;
+  message?: string;
+}
+
+const MOCK_PROFESSOR_USER: User = {
+  uuid: 'mock-prof-uuid-123',
+  username: 'professor@oeplan.com',
+  first_name: 'Maria',
+  last_name: 'Silva',
+  email: 'professor@oeplan.com',
+  role: 'Professor',
+};
+
 const MOCK_ADMIN_USER: User = {
-  uuid: 'mock-admin-uuid',
-  username: 'admin@gmail.com',
+  uuid: 'mock-admin-uuid-456',
+  username: 'admin@gmail.com', // Mantido como gmail para corresponder ao uso inicial
   first_name: 'Admin',
   last_name: 'OEPlan',
   email: 'admin@gmail.com',
   role: 'Administrador',
 };
 
-const MOCK_PROFESSOR_USER: User = {
-  uuid: 'mock-prof-uuid',
-  username: 'professor@example.com',
-  first_name: 'Professor',
-  last_name: 'Teste',
-  email: 'professor@example.com',
-  role: 'Professor',
-};
+const loggedInUser = ref<User | null>(null);
+const authToken = ref<string | null>(null);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
 
-export const useAuth = () => {
-  // Função interna para limpar o estado de autenticação
-  const _clearState = () => {
-    authState.value = {
-      isLoggedIn: false,
-      user: undefined,
-      token: null,
-      error: null,
-      loading: false,
-    };
-    // Limpa o cookie de sessão simulado se estiver no cliente
+export function useAuth() {
+  if (process.client) {
+    const storedToken = localStorage.getItem('authToken');
+    const storedUser = localStorage.getItem('loggedInUser');
+    if (storedToken) {
+      authToken.value = storedToken;
+    }
+    if (storedUser) {
+      try {
+        loggedInUser.value = JSON.parse(storedUser);
+      } catch (e) {
+        localStorage.removeItem('loggedInUser');
+      }
+    }
+  }
+
+  const isAuthenticated = computed(() => !!loggedInUser.value && !!authToken.value);
+
+  const setAuthData = (userData: User, tokenData: string) => {
+    loggedInUser.value = userData;
+    authToken.value = tokenData;
     if (process.client) {
-        const sessionCookie = useCookie('mock-auth-session');
-        sessionCookie.value = null; // Usa null para limpar o cookie
+      localStorage.setItem('loggedInUser', JSON.stringify(userData));
+      localStorage.setItem('authToken', tokenData);
     }
-    console.log('[AuthMock] Estado limpo e cookie de sessão simulado removido.');
   };
 
-  // Função de login simulada
-  const login = async (credentials: UserLogin): Promise<boolean> => {
-    authState.value.loading = true;
-    authState.value.error = null;
-    console.log('[AuthMock] A tentar login com:', credentials);
-
-    // Simula um atraso de API
-    await new Promise(resolve => setTimeout(resolve, 700));
-
-    let loginSuccess = false;
-    let loggedInUser: User | undefined = undefined;
-
-    // Verifica as credenciais contra os utilizadores mockados
-    if (credentials.username === MOCK_ADMIN_USER.email && credentials.password === '12345') {
-      loggedInUser = MOCK_ADMIN_USER;
-      loginSuccess = true;
-    } else if (credentials.username === MOCK_PROFESSOR_USER.email && credentials.password === 'password') {
-      loggedInUser = MOCK_PROFESSOR_USER;
-      loginSuccess = true;
+  const clearAuthData = () => {
+    loggedInUser.value = null;
+    authToken.value = null;
+    if (process.client) {
+      localStorage.removeItem('loggedInUser');
+      localStorage.removeItem('authToken');
     }
+  };
 
-    if (loginSuccess && loggedInUser) {
-      const mockToken = `mock-token-for-${loggedInUser.username}-${Date.now()}`;
-      authState.value = {
-        isLoggedIn: true,
-        user: loggedInUser,
-        token: mockToken,
-        error: null,
-        loading: false,
-      };
-      // Simula a criação de um cookie de sessão no cliente
-      if (process.client) {
-        const sessionCookie = useCookie('mock-auth-session', { maxAge: 60 * 60 * 24 * 7 }); // Cookie válido por 7 dias
-        sessionCookie.value = mockToken;
-      }
-      console.log('[AuthMock] Login bem-sucedido:', loggedInUser.username);
-      return true;
+  async function requestMagicLink(email: string): Promise<{ success: boolean; message?: string }> {
+    isLoading.value = true;
+    error.value = null;
+    if (USE_MOCK_BACKEND) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          if (email === MOCK_PROFESSOR_USER.email || email === MOCK_ADMIN_USER.email) {
+            resolve({ success: true, message: `Link (simulado) enviado para ${email}. Use token 'mock_magic_token_for_${email.split('@')[0]}'` });
+          } else {
+            error.value = 'E-mail não encontrado (mock).';
+            resolve({ success: false, message: error.value ?? undefined });
+          }
+          isLoading.value = false;
+        }, 1000);
+      });
     } else {
-      authState.value.error = 'Utilizador ou senha inválidos (mock).';
-      authState.value.loading = false;
-      console.warn('[AuthMock] Falha no login:', authState.value.error);
-      return false;
+      // Lógica real omitida para brevidade (estava no código anterior)
+      return { success: false, message: "Backend real não implementado nesta versão" };
     }
-  };
+  }
 
-  // Função de registo simulada
-  const register = async (registrationData: UserRegister): Promise<boolean> => {
-    authState.value.loading = true;
-    authState.value.error = null;
-    console.log('[AuthMock] A tentar registar com:', registrationData);
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    // Simula sucesso no registo
-    console.log('[AuthMock] Registo (simulado) bem-sucedido para:', registrationData.email);
-    authState.value.loading = false;
-    // Numa aplicação real, poderia redirecionar para login ou logar automaticamente
-    return true;
-  };
-
-  // Função de envio de magic link simulada
-  const sendMagicLink = async (email: string): Promise<boolean> => {
-    authState.value.loading = true;
-    authState.value.error = null;
-    console.log('[AuthMock] A enviar magic link (simulado) para:', email);
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    console.log('[AuthMock] Magic link (simulado) enviado com sucesso.');
-    authState.value.loading = false;
-    return true;
-  };
-
-  // Função de logout simulada
-  const logout = async () => {
-    authState.value.loading = true;
-    console.log('[AuthMock] A realizar logout...');
-    await new Promise(resolve => setTimeout(resolve, 200));
-    _clearState(); // Limpa o estado e o cookie simulado
-    console.log('[AuthMock] Logout concluído.');
-  };
-
-  // Função para inicializar o estado de autenticação (ex: ao carregar a app)
-  const initState = () => {
-    if (process.client) { // Executar apenas no cliente
-      console.log('[AuthMock] A iniciar estado de autenticação...');
-      const sessionCookie = useCookie<string | null>('mock-auth-session');
-      if (sessionCookie.value && sessionCookie.value.startsWith('mock-token-for-')) {
-        // Extrai o nome de utilizador do token mockado para simular a recuperação dos dados
-        const usernameFromToken = sessionCookie.value.split('-')[3];
-        let foundUser: User | undefined;
-        if (usernameFromToken === MOCK_ADMIN_USER.email) {
-            foundUser = MOCK_ADMIN_USER;
-        } else if (usernameFromToken === MOCK_PROFESSOR_USER.email) {
+  async function loginWithMagicLinkToken(token: string): Promise<{ success: boolean; user?: User; message?: string }> {
+    isLoading.value = true;
+    error.value = null;
+    if (USE_MOCK_BACKEND) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          let foundUser: User | undefined = undefined;
+          if (token === `mock_magic_token_for_${MOCK_PROFESSOR_USER.email.split('@')[0]}`) {
             foundUser = MOCK_PROFESSOR_USER;
-        }
+          } else if (token === `mock_magic_token_for_${MOCK_ADMIN_USER.email.split('@')[0]}`) {
+            foundUser = MOCK_ADMIN_USER;
+          }
 
-        if (foundUser) {
-            authState.value = {
-                isLoggedIn: true,
-                user: foundUser,
-                token: sessionCookie.value,
-                error: null,
-                loading: false,
-            };
-            console.log('[AuthMock] Sessão restaurada para:', foundUser.username);
-        } else {
-            // Se o token no cookie não corresponder a nenhum utilizador mockado
-            console.log('[AuthMock] Token mockado inválido encontrado, a limpar.');
-            _clearState();
-        }
-      } else {
-        // Se não houver cookie de sessão simulado válido
-        console.log('[AuthMock] Nenhum cookie de sessão simulado válido encontrado.');
-        // Pode ser útil garantir que o estado esteja limpo se não houver cookie
-        // _clearState(); // Descomente se quiser limpar ativamente o estado se não houver cookie
-      }
+          if (foundUser) {
+            setAuthData(foundUser, `jwt_mock_token_${foundUser.role.toLowerCase()}_${Date.now()}`);
+            resolve({ success: true, user: foundUser, message: 'Login Magic Link (simulado) OK!' });
+          } else {
+            error.value = 'Token inválido (mock).';
+            clearAuthData();
+            resolve({ success: false, message: error.value ?? undefined });
+          }
+          isLoading.value = false;
+        }, 1500);
+      });
+    } else {
+      // Lógica real omitida
+      return { success: false, message: "Backend real não implementado nesta versão" };
     }
-  };
+  }
 
-  // Função para "buscar" o utilizador (usada principalmente para revalidar sessão)
-  const fetchUser = async () => {
-    // No mock, initState já tenta restaurar a sessão a partir do cookie.
-    // Esta função pode ser chamada se for preciso forçar uma verificação do estado.
-    if (!authState.value.isLoggedIn && process.client && useCookie('mock-auth-session').value) {
-        initState(); // Tenta inicializar se ainda não estiver logado mas houver cookie
+  async function loginAdmin(credentials: UserLogin): Promise<{ success: boolean; user?: User; message?: string }> {
+    isLoading.value = true;
+    error.value = null;
+    if (USE_MOCK_BACKEND) {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          if (credentials.username === MOCK_ADMIN_USER.email && credentials.password === 'admin123') {
+            setAuthData(MOCK_ADMIN_USER, `jwt_mock_token_admin_${Date.now()}`);
+            resolve({ success: true, user: MOCK_ADMIN_USER, message: 'Login Admin (simulado) OK!' });
+          } else {
+            error.value = 'Credenciais inválidas (mock).';
+            clearAuthData();
+            resolve({ success: false, message: error.value ?? undefined });
+          }
+          isLoading.value = false;
+        }, 1000);
+      });
+    } else {
+      // Lógica real omitida
+      return { success: false, message: "Backend real não implementado nesta versão" };
     }
-    if (!authState.value.isLoggedIn) {
-      console.log('[AuthMock] fetchUser chamado, mas utilizador não está logado (ou sessão não restaurada).');
-    }
-  };
+  }
 
-  // Expõe o estado e as funções
+  async function logout() {
+    isLoading.value = true;
+    error.value = null;
+    // Lógica de logout omitida para brevidade (estava no código anterior)
+    clearAuthData();
+    isLoading.value = false;
+    if (process.client) await navigateTo('/login');
+  }
+
+  async function initializeAuth() {
+    // Esta é a versão que tinha a chamada automática no final do composable
+    // e uma lógica de inicialização mais simples.
+    console.log(`[AuthV1] initializeAuth chamada. Mock: ${USE_MOCK_BACKEND}. Client: ${process.client}`);
+    if (!process.client) return;
+
+    if (USE_MOCK_BACKEND) {
+        const localToken = localStorage.getItem('authToken');
+        const localUserStr = localStorage.getItem('loggedInUser');
+        if (localToken && localUserStr) {
+            try {
+                const localUser = JSON.parse(localUserStr) as User;
+                if ((localUser.email === MOCK_PROFESSOR_USER.email || localUser.email === MOCK_ADMIN_USER.email)) {
+                    loggedInUser.value = localUser;
+                    authToken.value = localToken;
+                } else { clearAuthData(); }
+            } catch (e) { clearAuthData(); }
+        } else { clearAuthData(); }
+    } else {
+      // Lógica real omitida
+    }
+  }
+
+  // Chamada automática que foi removida posteriormente
+  if (process.client) {
+    initializeAuth();
+  }
+
   return {
-    state: computed(() => authState.value),
-    login,
+    loggedInUser,
+    authToken,
+    isAuthenticated,
+    isLoading,
+    error,
+    requestMagicLink,
+    loginWithMagicLinkToken,
+    loginAdmin,
     logout,
-    register,
-    sendMagicLink,
-    fetchUser,
-    initState,
+    initializeAuth,
   };
-};
+}

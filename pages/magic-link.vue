@@ -1,80 +1,59 @@
 <template>
-  <v-container fluid class="login-container pa-0">
-    <v-row align="center" justify="center" class="fill-height ma-0">
-      <!-- Painel Esquerdo com Logo e Título (Visível em telas médias e maiores) -->
-      <v-col cols="12" md="7" class="d-none d-md-flex align-center justify-center left-pane">
-        <div class="text-center pa-8">
-          <img src="assets/icons/logo.svg" alt="Logo OEPlan" style="width: 100px; height: auto; margin-bottom: 24px;" />
-          <h1 class="text-h4 font-weight-bold mb-3" style="color: white;">OEPlan</h1>
-          <p class="text-subtitle-1" style="color: #e0e0e0; max-width: 400px; margin: 0 auto;">
-            Sistema para Gerenciamento de Atividades Docentes
-          </p>
-        </div>
-      </v-col>
-
-      <!-- Painel Direito com Formulário de Login -->
-      <v-col cols="12" md="5" class="d-flex align-center justify-center right-pane">
-        <v-card class="pa-6 pa-md-8" elevation="12" max-width="450" width="100%" rounded="lg">
-          <v-card-title class="text-h5 font-weight-bold text-center mb-6">
-            Login
-          </v-card-title>
-          <v-card-text>
-            <v-form @submit.prevent="onSubmit">
+  <v-container fluid class="fill-height pa-0">
+    <v-row align="center" justify="center" class="fill-height">
+      <v-col cols="12" sm="8" md="6" lg="4">
+        <v-card class="elevation-12 rounded-lg pa-4">
+          <v-toolbar color="primary" dark flat>
+            <v-toolbar-title class="text-center flex-grow-1">
+              Acesso OEPlan
+            </v-toolbar-title>
+          </v-toolbar>
+          <v-card-text class="pa-6">
+            <p class="text-center mb-6">
+              Insira seu e-mail abaixo para receber um link de acesso mágico.
+            </p>
+            <v-form ref="form" v-model="isValidForm" @submit.prevent="handleRequestMagicLink">
               <v-text-field
                 v-model="email"
-                label="Email"
-                type="email"
+                label="E-mail"
                 prepend-inner-icon="mdi-email-outline"
-                variant="outlined"
-                density="comfortable"
+                type="email"
+                :rules="emailRules"
                 required
-                autocomplete="username"
+                variant="outlined"
                 class="mb-4"
                 color="primary"
               ></v-text-field>
 
-              <v-text-field
-                v-model="password"
-                label="Senha"
-                type="password"
-                prepend-inner-icon="mdi-lock-outline"
-                variant="outlined"
-                density="comfortable"
-                required
-                autocomplete="current-password"
-                class="mb-2"
-                color="primary"
-              ></v-text-field>
-
-              <div class="text-right mb-5">
-                <a href="#" class="text-caption text-primary font-weight-medium" style="text-decoration: none;">Esqueceu a senha?</a>
-              </div>
+              <v-alert
+                v-if="message"
+                :type="messageType"
+                dense
+                outlined
+                class="mb-4"
+              >
+                {{ message }}
+              </v-alert>
 
               <v-btn
-                type="submit"
+                :loading="loading"
+                :disabled="!isValidForm || loading"
                 block
                 color="primary"
                 size="large"
-                :loading="loading"
-                class="mb-4"
+                type="submit"
+                class="rounded-lg"
               >
-                Entrar
+                <v-icon left class="mr-2">mdi-send-outline</v-icon>
+                Enviar Link de Acesso
               </v-btn>
             </v-form>
-            <div class="text-center">
-              <p class="text-body-2">
-                Não tem conta?
-                <NuxtLink to="/register" class="text-primary font-weight-medium" style="text-decoration: none;">Cadastre-se</NuxtLink>
-              </p>
-               <p class="text-body-2 mt-2">
-                Ou entre com
-                <NuxtLink to="/magic-login" class="text-primary font-weight-medium" style="text-decoration: none;">Magic Link</NuxtLink>
-              </p>
-              <p class="text-caption mt-6">
-                Precisa de ajuda? <a href="#" class="text-primary" style="text-decoration: none;">Entre em contato</a>
-              </p>
-            </div>
           </v-card-text>
+          <v-card-actions class="justify-center pa-4">
+             <NuxtLink to="/" class="text-decoration-none text-primary">
+                Voltar para o Início
+              </NuxtLink>
+          </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
@@ -83,62 +62,97 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuth } from '~/composables/auth';
+import { useRouter } from 'vue-router'; // ou '#app' para Nuxt 3
 
+// Se estiver usando o composable de autenticação
+// import { useAuth } from '~/composables/auth'; // Ajuste o caminho se necessário
+
+// Definição do layout (se você tiver um layout específico para login)
 definePageMeta({
-  layout: 'empty', // Layout sem header/sidebar padrão
-});
-useHead({
-  title: 'Login - OEPlan',
+  layout: 'auth', // Ou o nome do seu layout de autenticação, se houver. Senão, pode remover.
+  middleware: ['guest'] // Exemplo: se tiver um middleware para redirecionar usuários já logados
 });
 
-const email = ref('admin@gmail.com');
-const password = ref('12345');
+const email = ref('');
 const loading = ref(false);
-const router = useRouter();
-const { login } = useAuth(); // Certifique-se que este composable está criado e funcionando
+const message = ref('');
+const messageType = ref<'success' | 'error' | 'info'>('info');
+const isValidForm = ref(false);
+const form = ref<any>(null); // Para referenciar o v-form
 
-async function onSubmit() {
+const router = useRouter();
+
+// Regras de validação para o e-mail
+const emailRules = [
+  (v: string) => !!v || 'E-mail é obrigatório.',
+  (v: string) => /.+@.+\..+/.test(v) || 'E-mail deve ser válido.',
+];
+
+// Simulação da função do composable/auth.ts
+// No seu projeto real, você importaria e usaria a função do seu composable.
+async function mockRequestMagicLink(emailAddress: string): Promise<{ success: boolean; error?: string }> {
+  console.log(`Solicitando magic link para: ${emailAddress}`);
+  // Simula uma chamada de API
+  return new Promise(resolve => {
+    setTimeout(() => {
+      if (emailAddress === 'error@example.com') {
+        resolve({ success: false, error: 'Este e-mail está bloqueado.' });
+      } else if (emailAddress.includes('@')) {
+        resolve({ success: true });
+      } else {
+        resolve({ success: false, error: 'E-mail inválido fornecido para mock.' });
+      }
+    }, 1500);
+  });
+}
+
+const handleRequestMagicLink = async () => {
+  // Valida o formulário antes de prosseguir
+  const { valid } = await form.value?.validate();
+  if (!valid) {
+    message.value = 'Por favor, corrija os erros no formulário.';
+    messageType.value = 'error';
+    return;
+  }
+
   loading.value = true;
+  message.value = ''; // Limpa mensagens anteriores
+
   try {
-    const loginSuccess = await login({ username: email.value, password: password.value });
-    if (loginSuccess) {
-      router.push('/dashboard');
+    // No seu projeto real, você chamaria:
+    // const { success, error } = await useAuth().requestMagicLink(email.value);
+    const { success, error } = await mockRequestMagicLink(email.value); // Usando o mock
+
+    if (success) {
+      message.value = 'Link de acesso enviado! Por favor, verifique sua caixa de entrada e pasta de spam.';
+      messageType.value = 'success';
+      email.value = ''; // Limpa o campo de e-mail após o sucesso
+      form.value?.resetValidation(); // Reseta a validação do formulário
     } else {
-      // Exibir erro de forma mais elegante no futuro
-      alert('Utilizador ou senha inválidos');
+      message.value = error || 'Ocorreu um erro ao solicitar o link. Tente novamente.';
+      messageType.value = 'error';
     }
-  } catch (error) {
-    console.error("Erro no login:", error);
-    alert('Ocorreu um erro durante o login.');
+  } catch (err: any) {
+    console.error('Erro ao solicitar magic link:', err);
+    message.value = err.data?.message || err.message || 'Falha na comunicação com o servidor. Tente mais tarde.';
+    messageType.value = 'error';
   } finally {
     loading.value = false;
   }
-}
+};
+
+// Metadata da página (SEO)
+useHead({
+  title: 'Acesso OEPlan',
+  meta: [
+    { name: 'description', content: 'Acesse o OEPlan utilizando seu e-mail para receber um link mágico.' }
+  ],
+});
 </script>
 
 <style scoped>
-.login-container {
-  min-height: 100vh;
-  width: 100vw; /* Garante que o container ocupe toda a largura */
-}
 .fill-height {
   min-height: 100vh;
 }
-.left-pane {
-  background-color: #04060f; /* Cor de fundo escura do seu design original */
-  min-height: 100vh;
-}
-.right-pane {
-  background-color: #0e1321; /* Cor de fundo um pouco mais clara */
-  min-height: 100vh;
-  padding: 16px;
-}
-.v-card {
-  background-color: rgb(var(--v-theme-surface)); /* Usa a cor de superfície do tema Vuetify */
-}
-.text-primary {
-  color: rgb(var(--v-theme-primary)) !important;
-}
+/* Você pode adicionar estilos globais em assets/css/global.css */
 </style>

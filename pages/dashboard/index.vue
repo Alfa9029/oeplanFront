@@ -1,312 +1,519 @@
 <template>
-  <v-container fluid>
-    <v-row align="center" class="mb-4">
-      <v-col>
-        <h1 class="text-h4 font-weight-bold">Painel de Tarefas</h1>
-      </v-col>
-      <v-col class="text-right">
-        <v-btn color="primary" @click="openCreateTaskDialog" prepend-icon="mdi-plus-circle-outline">
-          Criar Tarefa
-        </v-btn>
-      </v-col>
-    </v-row>
+  <v-container fluid class="pa-md-6 pa-4">
+    <div class="d-flex justify-space-between align-center mb-6 flex-wrap ga-2">
+      <h1 class="text-h4 text-md-h3 font-weight-bold">Painel de Tarefas</h1>
+      <v-btn
+        color="primary"
+        prepend-icon="mdi-plus-circle-outline"
+        size="large"
+        class="mt-2 mt-md-0"
+        @click="openCreateTaskModal"
+        data-testid="create-task-btn"
+      >
+        Criar Tarefa
+      </v-btn>
+    </div>
 
     <!-- Filtros -->
-    <v-card flat class="mb-6 pa-4" color="surface-variant" variant="tonal">
-      <v-row dense>
-        <v-col cols="12" md="4">
+    <v-card class="mb-6 pa-4" flat border>
+      <v-row align="center" dense>
+        <v-col cols="12" md="4" sm="6">
           <v-text-field
-            v-model="searchTerm"
+            v-model="searchQuery"
             label="Pesquisar por nome..."
+            density="compact"
+            variant="outlined"
             prepend-inner-icon="mdi-magnify"
-            variant="outlined"
-            density="compact"
             hide-details
             clearable
+            data-testid="search-input"
           ></v-text-field>
         </v-col>
-        <v-col cols="12" md="3">
+        <v-col cols="12" md="3" sm="6">
           <v-select
-            v-model="selectedStatus"
-            :items="statusFilterOptions"
-            item-title="text"
-            item-value="value"
+            v-model="statusFilter"
             label="Filtrar por Status"
-            variant="outlined"
+            :items="['Todos os Status', 'To Do', 'In Progress', 'In Review', 'Done']"
             density="compact"
+            variant="outlined"
             hide-details
             clearable
+            data-testid="status-filter"
           ></v-select>
         </v-col>
-        <v-col cols="12" md="3">
+        <v-col cols="12" md="3" sm="6">
           <v-select
-            v-model="selectedPriority"
-            :items="priorityFilterOptions"
-            item-title="text"
-            item-value="value"
+            v-model="priorityFilter"
             label="Filtrar por Prioridade"
-            variant="outlined"
+            :items="['Todas as Prioridades', 'Baixa', 'Média', 'Alta']"
             density="compact"
+            variant="outlined"
             hide-details
             clearable
+            data-testid="priority-filter"
           ></v-select>
         </v-col>
-        <v-col cols="12" md="2">
-          <v-text-field
-            v-model="selectedDate"
-            label="Data de Criação"
-            type="date"
-            variant="outlined"
-            density="compact"
-            hide-details
-            clearable
-          ></v-text-field>
+        <v-col cols="12" md="2" sm="6">
+           <v-text-field
+              v-model="dateFilter"
+              label="Data de Criação"
+              type="date"
+              density="compact"
+              variant="outlined"
+              hide-details
+              clearable
+              data-testid="date-filter"
+            ></v-text-field>
         </v-col>
       </v-row>
     </v-card>
 
-    <!-- Kanban Board -->
+    <!-- Colunas de Tarefas -->
     <v-row>
-      <v-col
-        v-for="statusColumn in taskColumns"
-        :key="statusColumn.id"
-        cols="12"
-        md="4"
-      >
-        <v-card class="pa-2 task-column-card" color="background-lighten-1" flat>
-          <v-card-title class="text-h6 font-weight-medium mb-2 d-flex align-center">
-            {{ statusColumn.title }}
-            <v-chip size="small" color="primary" class="ml-2" label>{{ filteredTasksByStatus(statusColumn.status).length }}</v-chip>
-          </v-card-title>
-          <v-card-text class="pa-1 task-column-content">
-            <!-- Área de Arrastar e Soltar (Drag and Drop) - Exemplo com vuedraggable (requer instalação) -->
-            <!-- <draggable v-model="tasksByStatus[statusColumn.status]" group="tasks" item-key="uuid" class="space-y-3 min-h-task-column"> -->
-            <!--   <template #item="{element}"> -->
-            <!--     <TaskCard :task="element" @click="navigateToTask(element.uuid)" @editTask="openEditTaskDialog" @deleteTask="confirmDeleteTask" /> -->
-            <!--   </template> -->
-            <!-- </draggable> -->
-            <div v-if="filteredTasksByStatus(statusColumn.status).length > 0" class="space-y-3">
-              <TaskCard
-                v-for="task in filteredTasksByStatus(statusColumn.status)"
-                :key="task.uuid"
-                :task="task"
-                @click="navigateToTask(task.uuid)"
-                @viewDetails="navigateToTask"
-                @editTask="openEditTaskDialog"
-                @deleteTask="confirmDeleteTask"
-                @moveToTodo="moveTaskToStatus(task.uuid, 'To Do')"
-                @moveToInProgress="moveTaskToStatus(task.uuid, 'In Progress')"
-                @moveToInReview="moveTaskToStatus(task.uuid, 'In Review')"
-                @moveToDone="moveTaskToStatus(task.uuid, 'Done')"
-              />
+      <!-- Coluna A Fazer -->
+      <v-col cols="12" md="6" lg="3">
+        <div class="d-flex align-center mb-3">
+          <h2 class="text-h6 mr-2">A Fazer</h2>
+          <v-chip color="blue-grey-lighten-1" text-color="white" size="small" label data-testid="todo-count">{{ tasksToDo.length }}</v-chip>
+        </div>
+        <div class="task-column" data-testid="todo-column">
+          <v-card
+            v-for="task in tasksToDo"
+            :key="task.uuid"
+            class="mb-3 pa-3 task-card"
+            elevation="1"
+            border
+            hover
+            @click="openTaskDetails(task)"
+            :data-testid="`task-card-${task.uuid}`"
+          >
+            <div class="d-flex justify-space-between align-start">
+              <v-card-title class="pa-0 text-subtitle-1 font-weight-medium mb-1">{{ task.title }}</v-card-title>
+              <v-menu location="bottom end">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" size="small" variant="text" v-bind="props" @click.stop></v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-item @click.stop="openEditTaskModal(task)" title="Editar" prepend-icon="mdi-pencil-outline" :data-testid="`edit-task-${task.uuid}`"></v-list-item>
+                  <v-list-item @click.stop="confirmDeleteTask(task.uuid)" title="Excluir" prepend-icon="mdi-delete-outline" base-color="error" :data-testid="`delete-task-${task.uuid}`"></v-list-item>
+                </v-list>
+              </v-menu>
             </div>
-            <div v-else class="text-center pa-8 text-disabled">
-              <v-icon size="48" class="mb-2">mdi-format-list-checks</v-icon>
-              <p>Nenhuma tarefa {{ statusColumn.title.toLowerCase() }}.</p>
+            <v-card-text class="pa-0 text-body-2 text-medium-emphasis mt-1 task-description">
+               {{ task.description }}
+            </v-card-text>
+            <div class="d-flex align-center mt-3 text-caption text-medium-emphasis">
+              <v-icon size="small" class="mr-1">mdi-calendar-clock-outline</v-icon> Prazo: {{ formatDate(task.due_date) }}
             </div>
-          </v-card-text>
-        </v-card>
+             <div class="d-flex align-center mt-1 text-caption text-medium-emphasis">
+              <v-icon size="small" class="mr-1">mdi-account-outline</v-icon> Para: {{ task.assigned_to.first_name }}
+            </div>
+            <div class="mt-3">
+              <v-chip v-for="tag in task.tags?.slice(0, 3)" :key="tag" size="x-small" label class="mr-1 mb-1">{{ tag }}</v-chip>
+              <v-chip v-if="task.tags && task.tags.length > 3" size="x-small" label class="mr-1 mb-1"> +{{ task.tags.length - 3 }}</v-chip>
+            </div>
+          </v-card>
+          <p v-if="tasksToDo.length === 0" class="text-medium-emphasis text-center pa-4">Nenhuma tarefa aqui.</p>
+        </div>
+      </v-col>
+
+      <!-- Coluna Em Progresso -->
+      <v-col cols="12" md="6" lg="3">
+         <div class="d-flex align-center mb-3">
+          <h2 class="text-h6 mr-2">Em Progresso</h2>
+          <v-chip color="blue-darken-1" text-color="white" size="small" label data-testid="inprogress-count">{{ tasksInProgress.length }}</v-chip>
+        </div>
+        <div class="task-column" data-testid="inprogress-column">
+          <v-card
+            v-for="task in tasksInProgress"
+            :key="task.uuid"
+            class="mb-3 pa-3 task-card"
+            elevation="1"
+            border
+            hover
+            @click="openTaskDetails(task)"
+            :data-testid="`task-card-${task.uuid}`"
+          >
+             <div class="d-flex justify-space-between align-start">
+              <v-card-title class="pa-0 text-subtitle-1 font-weight-medium mb-1">{{ task.title }}</v-card-title>
+              <v-menu location="bottom end">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" size="small" variant="text" v-bind="props" @click.stop></v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-item @click.stop="openEditTaskModal(task)" title="Editar" prepend-icon="mdi-pencil-outline"></v-list-item>
+                  <v-list-item @click.stop="confirmDeleteTask(task.uuid)" title="Excluir" prepend-icon="mdi-delete-outline" base-color="error"></v-list-item>
+                </v-list>
+              </v-menu>
+            </div>
+            <v-card-text class="pa-0 text-body-2 text-medium-emphasis mt-1 task-description">
+               {{ task.description }}
+            </v-card-text>
+             <div class="d-flex align-center mt-3 text-caption text-medium-emphasis">
+              <v-icon size="small" class="mr-1">mdi-calendar-clock-outline</v-icon> Prazo: {{ formatDate(task.due_date) }}
+            </div>
+             <div class="d-flex align-center mt-1 text-caption text-medium-emphasis">
+              <v-icon size="small" class="mr-1">mdi-account-outline</v-icon> Para: {{ task.assigned_to.first_name }}
+            </div>
+             <div class="mt-3">
+              <v-chip v-for="tag in task.tags?.slice(0, 3)" :key="tag" size="x-small" label class="mr-1 mb-1">{{ tag }}</v-chip>
+              <v-chip v-if="task.tags && task.tags.length > 3" size="x-small" label class="mr-1 mb-1"> +{{ task.tags.length - 3 }}</v-chip>
+            </div>
+          </v-card>
+          <p v-if="tasksInProgress.length === 0" class="text-medium-emphasis text-center pa-4">Nenhuma tarefa aqui.</p>
+        </div>
+      </v-col>
+
+      <!-- Coluna Em Revisão -->
+      <v-col cols="12" md="6" lg="3">
+        <div class="d-flex align-center mb-3">
+          <h2 class="text-h6 mr-2">Em Revisão</h2>
+          <v-chip color="orange-darken-2" text-color="white" size="small" label data-testid="inreview-count">{{ tasksInReview.length }}</v-chip>
+        </div>
+        <div class="task-column" data-testid="inreview-column">
+          <v-card
+            v-for="task in tasksInReview"
+            :key="task.uuid"
+            class="mb-3 pa-3 task-card"
+            elevation="1"
+            border
+            hover
+            @click="openTaskDetails(task)"
+            :data-testid="`task-card-${task.uuid}`"
+          >
+            <div class="d-flex justify-space-between align-start">
+              <v-card-title class="pa-0 text-subtitle-1 font-weight-medium mb-1">{{ task.title }}</v-card-title>
+               <v-menu location="bottom end">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" size="small" variant="text" v-bind="props" @click.stop></v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-item @click.stop="openEditTaskModal(task)" title="Editar" prepend-icon="mdi-pencil-outline"></v-list-item>
+                  <v-list-item @click.stop="confirmDeleteTask(task.uuid)" title="Excluir" prepend-icon="mdi-delete-outline" base-color="error"></v-list-item>
+                </v-list>
+              </v-menu>
+            </div>
+            <v-card-text class="pa-0 text-body-2 text-medium-emphasis mt-1 task-description">
+               {{ task.description }}
+            </v-card-text>
+             <div class="d-flex align-center mt-3 text-caption text-medium-emphasis">
+              <v-icon size="small" class="mr-1">mdi-calendar-clock-outline</v-icon> Prazo: {{ formatDate(task.due_date) }}
+            </div>
+             <div class="d-flex align-center mt-1 text-caption text-medium-emphasis">
+              <v-icon size="small" class="mr-1">mdi-account-outline</v-icon> Para: {{ task.assigned_to.first_name }}
+            </div>
+            <div class="mt-3">
+              <v-chip v-for="tag in task.tags?.slice(0, 3)" :key="tag" size="x-small" label class="mr-1 mb-1">{{ tag }}</v-chip>
+              <v-chip v-if="task.tags && task.tags.length > 3" size="x-small" label class="mr-1 mb-1"> +{{ task.tags.length - 3 }}</v-chip>
+            </div>
+          </v-card>
+          <p v-if="tasksInReview.length === 0" class="text-medium-emphasis text-center pa-4">Nenhuma tarefa aqui.</p>
+        </div>
+      </v-col>
+
+      <!-- Coluna Concluído -->
+      <v-col cols="12" md="6" lg="3">
+        <div class="d-flex align-center mb-3">
+          <h2 class="text-h6 mr-2">Concluído</h2>
+          <v-chip color="green-darken-1" text-color="white" size="small" label data-testid="done-count">{{ tasksDone.length }}</v-chip>
+        </div>
+        <div class="task-column" data-testid="done-column">
+          <v-card
+            v-for="task in tasksDone"
+            :key="task.uuid"
+            class="mb-3 pa-3 task-card"
+            elevation="1"
+            border
+            hover
+            @click="openTaskDetails(task)"
+            style="opacity: 0.8;"
+            :data-testid="`task-card-${task.uuid}`"
+          >
+            <div class="d-flex justify-space-between align-start">
+              <v-card-title class="pa-0 text-subtitle-1 font-weight-medium mb-1" style="text-decoration: line-through;">{{ task.title }}</v-card-title>
+               <v-menu location="bottom end">
+                <template v-slot:activator="{ props }">
+                  <v-btn icon="mdi-dots-vertical" size="small" variant="text" v-bind="props" @click.stop></v-btn>
+                </template>
+                <v-list density="compact">
+                   <v-list-item @click.stop="() => {}" title="Arquivar" prepend-icon="mdi-archive-arrow-down-outline"></v-list-item>
+                   <v-list-item @click.stop="confirmDeleteTask(task.uuid)" title="Excluir" prepend-icon="mdi-delete-outline" base-color="error"></v-list-item>
+                </v-list>
+              </v-menu>
+            </div>
+            <v-card-text class="pa-0 text-body-2 text-medium-emphasis mt-1 task-description">
+               {{ task.description }}
+            </v-card-text>
+          </v-card>
+          <p v-if="tasksDone.length === 0" class="text-medium-emphasis text-center pa-4">Nenhuma tarefa aqui.</p>
+        </div>
       </v-col>
     </v-row>
 
-    <!-- Diálogo para Criar/Editar Tarefa -->
-    <v-dialog v-model="taskDialog" max-width="700px" persistent>
-      <CreateTaskForm
-        :initial-task-data="editingTask"
-        :users-list="mockUsersForSelect"
-        @close="closeTaskDialog"
-        @task-saved="handleTaskSaved"
-      />
-    </v-dialog>
+    <!-- Modal de Detalhes da Tarefa -->
+    <TaskDetailsModal
+      :task="selectedTaskForDetails"
+      :show="isTaskDetailsModalVisible"
+      @update:show="isTaskDetailsModalVisible = $event"
+      data-testid="task-details-modal"
+    />
 
-    <!-- Diálogo de Confirmação de Exclusão -->
-    <v-dialog v-model="deleteConfirmDialog" max-width="400px">
-      <v-card>
-        <v-card-title class="text-h5">Confirmar Exclusão</v-card-title>
-        <v-card-text>Tem certeza que deseja excluir esta tarefa?</v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn text @click="deleteConfirmDialog = false">Cancelar</v-btn>
-          <v-btn color="error" text @click="executeDeleteTask">Excluir</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <!-- Modal de Formulário de Tarefa (Criar/Editar) -->
+    <TaskFormModal
+      :show="isTaskFormModalVisible"
+      :task-to-edit="taskToEdit"
+      @update:show="isTaskFormModalVisible = $event"
+      @save="handleSaveTask"
+      data-testid="task-form-modal"
+    />
+
+    <!-- Snackbar para feedback -->
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="snackbar.timeout" location="top right">
+      {{ snackbar.text }}
+      <template v-slot:actions>
+        <v-btn icon="mdi-close" @click="snackbar.show = false"></v-btn>
+      </template>
+    </v-snackbar>
 
   </v-container>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { Task } from '~/shared/types/task.ts'; // Ajuste o caminho para o arquivo Task
-import type { User, SimpleUser } from '~/shared/types/auth/user.ts'; // Import SimpleUser
-import TaskCard from '../../components/TaskCard.vue';
-import CreateTaskForm from '../../components/CreateTaskForm.vue'; // Novo componente
-import { useRouter } from 'vue-router';
-import { useAuth } from '../../composables/auth';
+import { ref, computed, onMounted, watch } from 'vue';
+import type { Task, SimpleUser } from '~/shared/types/task'; // Ajuste o caminho se necessário
+import { MOCK_ALL_TASKS, allMockSimpleUsers } from '~/shared/data/mockData'; // Usando as tarefas gerais mockadas
+import TaskDetailsModal from '~/components/TaskDetailsModal.vue';
+// import TaskFormModal from '~/components/TaskFormModal.vue'; // Importa o modal de formulário
+import TaskFormModal from './../../components/TaskFormModal.vue';
+import { useAuth } from '~/composables/auth';
 
-definePageMeta({
-  layout: 'default',
-});
 
 useHead({
   title: 'Painel de Tarefas - OEPlan',
 });
 
-const router = useRouter();
-const auth = useAuth();
+const { loggedInUser } = useAuth();
 
-const taskDialog = ref(false);
-const editingTask = ref<Task | null>(null); // Para popular o formulário ao editar
-const deleteConfirmDialog = ref(false);
-const taskToDeleteId = ref<string | null>(null);
+const TASKS_STORAGE_KEY = 'oeplan_tasks_v1'; // Chave para o localStorage
+const allTasks = ref<Task[]>([]);
 
+// Estado para o Snackbar
+const snackbar = ref({
+  show: false,
+  text: '',
+  color: 'success',
+  timeout: 3000,
+});
 
-// Mock Data (Utilizadores) - Usado para o select de "Responsável" e "Criado por"
-const mockAdminUser: User = { uuid: 'user-uuid-admin', username: 'admin@gmail.com', first_name: 'Admin', last_name: 'Principal', email: 'admin@gmail.com', role: 'Administrador' };
-const mockUser1: User = { uuid: 'user-uuid-1', username: 'john.doe', first_name: 'John', last_name: 'Doe', email: 'john@example.com', role: 'Professor' };
-const mockUser2: User = { uuid: 'user-uuid-2', username: 'jane.smith', first_name: 'Jane', last_name: 'Smith', email: 'jane@example.com', role: 'Coordenador' };
+const showSnackbar = (text: string, color: string = 'success', timeout: number = 3000) => {
+  snackbar.value.text = text;
+  snackbar.value.color = color;
+  snackbar.value.timeout = timeout;
+  snackbar.value.show = true;
+};
 
-// Lista de utilizadores para o select no formulário de tarefas
-const mockUsersForSelect = computed<SimpleUser[]>(() => [
-  { uuid: mockAdminUser.uuid, username: mockAdminUser.username, first_name: mockAdminUser.first_name, last_name: mockAdminUser.last_name, email: mockAdminUser.email },
-  { uuid: mockUser1.uuid, username: mockUser1.username, first_name: mockUser1.first_name, last_name: mockUser1.last_name, email: mockUser1.email },
-  { uuid: mockUser2.uuid, username: mockUser2.username, first_name: mockUser2.first_name, last_name: mockUser2.last_name, email: mockUser2.email },
-]);
-
-
-const allTasks = ref<Task[]>([
-  { uuid: 'task-uuid-1', created_at: '2025-03-10T10:00:00Z', updated_at: '2025-03-11T14:30:00Z', title: 'Preparar Aula de Cálculo I', description: 'Revisar material e preparar slides para a próxima aula.', due_date: '2025-03-15', assigned_to: mockUser1, assigned_by: mockAdminUser, status: 'To Do', priority: 'Alta', visibility: 'Privada', tags: ['Cálculo', 'Aula'], category: "Ensino" },
-  { uuid: 'task-uuid-2', created_at: '2025-03-12T09:00:00Z', updated_at: '2025-03-13T11:00:00Z', title: 'Corrigir Provas de Algoritmos', description: 'Corrigir provas da turma ENG2023 de Algoritmos e Estruturas de Dados.', due_date: '2025-03-20', assigned_to: mockUser1, assigned_by: mockUser2, status: 'In Progress', priority: 'Média', visibility: 'Privada', tags: ['Avaliação', 'Engenharia', 'Algoritmos'], category: "Avaliação" },
-  { uuid: 'task-uuid-3', created_at: '2025-03-14T15:00:00Z', updated_at: '2025-03-14T17:00:00Z', title: 'Reunião Pedagógica Semestral', description: 'Participar da reunião sobre o novo currículo e planeamento do próximo semestre.', due_date: '2025-03-18', assigned_to: mockUser2, assigned_by: mockAdminUser, status: 'To Do', priority: 'Alta', visibility: 'Grupo', tags: ['Reunião', 'Currículo', 'Planeamento'], category: "Administrativo" },
-  { uuid: 'task-uuid-4', created_at: '2025-03-15T11:00:00Z', updated_at: '2025-03-16T16:00:00Z', title: 'Lançar Notas no Sistema Acadêmico', description: 'Lançar notas finais da disciplina de Física I no sistema acadêmico oficial.', due_date: '2025-03-22', assigned_to: mockUser1, assigned_by: mockUser2, status: 'In Review', priority: 'Baixa', visibility: 'Privada', tags: ['Notas', 'Acadêmico', 'Física'], category: "Administrativo" },
-  { uuid: 'task-uuid-5', created_at: '2025-03-18T11:00:00Z', updated_at: '2025-03-18T16:00:00Z', title: 'Orientação de TCC - Aluno Silva', description: 'Reunião de orientação com o aluno João Silva sobre o progresso do TCC.', due_date: '2025-03-25', assigned_to: mockUser2, assigned_by: mockAdminUser, status: 'Done', priority: 'Média', visibility: 'Privada', tags: ['TCC', 'Orientação'], category: "Acadêmico" },
-]);
-
-const taskColumns = [
-  { id: 'todo', title: 'A Fazer', status: 'To Do' as Task['status'] },
-  { id: 'inprogress', title: 'Em Progresso', status: 'In Progress' as Task['status'] },
-  { id: 'inreview', title: 'Em Revisão', status: 'In Review' as Task['status'] },
-  { id: 'done', title: 'Concluído', status: 'Done' as Task['status']},
-];
 
 // Filtros
-const searchTerm = ref('');
-const selectedStatus = ref<Task['status'] | null>(null);
-const selectedPriority = ref<Task['priority'] | null>(null);
-const selectedDate = ref('');
+const searchQuery = ref('');
+const statusFilter = ref<string | null>('Todos os Status');
+const priorityFilter = ref<string | null>('Todas as Prioridades');
+const dateFilter = ref<string | null>(null);
 
-const statusFilterOptions = [
-  { text: 'Todos os Status', value: null },
-  { text: 'A Fazer', value: 'To Do' },
-  { text: 'Em Progresso', value: 'In Progress' },
-  { text: 'Em Revisão', value: 'In Review' },
-  { text: 'Concluído', value: 'Done' },
-];
-const priorityFilterOptions = [
-  { text: 'Todas as Prioridades', value: null },
-  { text: 'Alta', value: 'Alta' },
-  { text: 'Média', value: 'Média' },
-  { text: 'Baixa', value: 'Baixa' },
-];
 
+// Carregar tarefas do localStorage ou usar mock
+onMounted(() => {
+  if (process.client) { // Garante que o localStorage só é acessado no cliente
+    const storedTasks = localStorage.getItem(TASKS_STORAGE_KEY);
+    if (storedTasks) {
+      try {
+        const parsedTasks = JSON.parse(storedTasks) as Task[];
+        // Simples validação para garantir que os dados são um array
+        if (Array.isArray(parsedTasks)) {
+          allTasks.value = parsedTasks;
+        } else {
+          throw new Error("Dados do localStorage não são um array.");
+        }
+      } catch (e) {
+        console.error("Erro ao carregar tarefas do localStorage:", e);
+        allTasks.value = [...MOCK_ALL_TASKS]; // Usa uma cópia dos mocks para evitar mutação direta
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(allTasks.value));
+      }
+    } else {
+      allTasks.value = [...MOCK_ALL_TASKS];
+      localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(allTasks.value));
+    }
+  } else {
+    // No SSR, podemos inicializar com mocks, mas não haverá persistência
+    allTasks.value = [...MOCK_ALL_TASKS];
+  }
+});
+
+// Salvar tarefas no localStorage sempre que 'allTasks' mudar
+watch(allTasks, (newTasks) => {
+  if (process.client) {
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(newTasks));
+  }
+}, { deep: true });
+
+
+// Tarefas filtradas
 const filteredTasks = computed(() => {
   return allTasks.value.filter(task => {
-    const matchesSearch = !searchTerm.value || task.title.toLowerCase().includes(searchTerm.value.toLowerCase());
-    const matchesStatus = !selectedStatus.value || task.status === selectedStatus.value;
-    const matchesPriority = !selectedPriority.value || task.priority === selectedPriority.value;
-    const matchesDate = !selectedDate.value || task.created_at.startsWith(selectedDate.value);
-    return matchesSearch && matchesStatus && matchesPriority && matchesDate;
+    const searchMatch = !searchQuery.value || task.title.toLowerCase().includes(searchQuery.value.toLowerCase());
+    const statusMatch = statusFilter.value === 'Todos os Status' || !statusFilter.value || task.status === statusFilter.value;
+    const priorityMatch = priorityFilter.value === 'Todas as Prioridades' || !priorityFilter.value || task.priority === priorityFilter.value;
+    // Ajuste para filtro de data: compara apenas a parte da data (YYYY-MM-DD)
+    const dateMatch = !dateFilter.value || (task.created_at && task.created_at.startsWith(dateFilter.value));
+    return searchMatch && statusMatch && priorityMatch && dateMatch;
   });
 });
 
-const filteredTasksByStatus = (columnStatus: Task['status']) => {
-  // Se um filtro de status geral estiver ativo, ele tem precedência para a contagem da coluna.
-  // Mas para a exibição, mostramos apenas as tarefas que correspondem ao status da coluna E aos outros filtros.
-  if (selectedStatus.value && selectedStatus.value !== columnStatus) {
-    return []; // Não mostra nada nesta coluna se o filtro de status geral não corresponder
+
+// Propriedades computadas para colunas de status baseadas nas tarefas filtradas
+const tasksToDo = computed(() => filteredTasks.value.filter(task => task.status === 'To Do'));
+const tasksInProgress = computed(() => filteredTasks.value.filter(task => task.status === 'In Progress'));
+const tasksInReview = computed(() => filteredTasks.value.filter(task => task.status === 'In Review'));
+const tasksDone = computed(() => filteredTasks.value.filter(task => task.status === 'Done'));
+
+// Modal de Detalhes da Tarefa
+const selectedTaskForDetails = ref<Task | null>(null);
+const isTaskDetailsModalVisible = ref(false);
+
+const openTaskDetails = (task: Task) => {
+  selectedTaskForDetails.value = task;
+  isTaskDetailsModalVisible.value = true;
+};
+
+// Modal de Formulário de Tarefa (Criar/Editar)
+const isTaskFormModalVisible = ref(false);
+const taskToEdit = ref<Task | null>(null);
+
+const openCreateTaskModal = () => {
+  taskToEdit.value = null; // Garante que está em modo de criação
+  isTaskFormModalVisible.value = true;
+};
+
+const openEditTaskModal = (task: Task) => {
+  taskToEdit.value = { ...task }; // Passa uma cópia para evitar mutação direta dos dados reativos
+  isTaskFormModalVisible.value = true;
+};
+
+const handleSaveTask = (taskDataFromModal: Omit<Task, 'uuid' | 'created_at' | 'updated_at' | 'assigned_by'> & { uuid?: string, assigned_by?: SimpleUser }) => {
+  const currentUser = loggedInUser.value || allMockSimpleUsers[0]; // Fallback para usuário mockado se não logado
+
+  if (!currentUser) {
+    showSnackbar("Não foi possível identificar o usuário criador da tarefa.", "error");
+    return;
   }
-  return filteredTasks.value.filter(task => task.status === columnStatus);
-};
+  // Garante que assigned_by é SimpleUser
+  const assignedBySimpleUser: SimpleUser = {
+    uuid: currentUser.uuid,
+    username: currentUser.username,
+    first_name: currentUser.first_name,
+    last_name: currentUser.last_name,
+    email: currentUser.email,
+  };
 
 
-const navigateToTask = (uuid: string) => {
-  router.push(`/tasks/${uuid}`);
-};
-
-const openCreateTaskDialog = () => {
-  editingTask.value = null; // Garante que é para criar uma nova tarefa
-  taskDialog.value = true;
-};
-
-const openEditTaskDialog = (taskId: string) => {
-  const taskToEdit = allTasks.value.find(t => t.uuid === taskId);
-  if (taskToEdit) {
-    editingTask.value = { ...taskToEdit }; // Clona a tarefa para edição
-    taskDialog.value = true;
-  }
-};
-
-const closeTaskDialog = () => {
-  taskDialog.value = false;
-  editingTask.value = null;
-};
-
-const handleTaskSaved = (savedTask: Task) => {
-  if (editingTask.value) { // Editando
-    const index = allTasks.value.findIndex(t => t.uuid === savedTask.uuid);
+  if (taskDataFromModal.uuid) { // Modo Edição
+    const index = allTasks.value.findIndex(t => t.uuid === taskDataFromModal.uuid);
     if (index !== -1) {
-      allTasks.value[index] = savedTask;
+      // Preserva created_at e assigned_by da tarefa original, atualiza o resto
+      const originalTask = allTasks.value[index];
+      allTasks.value[index] = {
+        ...originalTask, // Mantém uuid, created_at, assigned_by originais
+        ...taskDataFromModal, // Aplica todas as outras mudanças do formulário
+        assigned_to: taskDataFromModal.assigned_to as Task['assigned_to'], // Garante o tipo correto
+        updated_at: new Date().toISOString(),
+      };
+      showSnackbar('Tarefa atualizada com sucesso!', 'success');
+    } else {
+      showSnackbar('Erro ao encontrar a tarefa para editar.', 'error');
     }
-  } else { // Criando
-    allTasks.value.unshift(savedTask); // Adiciona no início da lista
+  } else { // Modo Criação
+    const newTask: Task = {
+      ...taskDataFromModal,
+      uuid: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      assigned_by: assignedBySimpleUser, // Usuário que criou a tarefa
+      assigned_to: taskDataFromModal.assigned_to as Task['assigned_to'], // Garante o tipo correto
+    };
+    allTasks.value.unshift(newTask); // Adiciona no início da lista para visibilidade imediata
+    showSnackbar('Tarefa criada com sucesso!', 'success');
   }
-  closeTaskDialog();
-  // Adicionar notificação de sucesso (snackbar Vuetify)
+  isTaskFormModalVisible.value = false;
+  taskToEdit.value = null;
 };
 
 const confirmDeleteTask = (taskId: string) => {
-  taskToDeleteId.value = taskId;
-  deleteConfirmDialog.value = true;
-};
-
-const executeDeleteTask = () => {
-  if (taskToDeleteId.value) {
-    allTasks.value = allTasks.value.filter(t => t.uuid !== taskToDeleteId.value);
-    console.log('Tarefa excluída:', taskToDeleteId.value);
-  }
-  deleteConfirmDialog.value = false;
-  taskToDeleteId.value = null;
-  // Adicionar notificação de sucesso
-};
-
-const moveTaskToStatus = (taskId: string, newStatus: Task['status']) => {
-  const taskIndex = allTasks.value.findIndex(t => t.uuid === taskId);
-  if (taskIndex !== -1) {
-    allTasks.value[taskIndex].status = newStatus;
-    allTasks.value[taskIndex].updated_at = new Date().toISOString(); // Atualiza data de modificação
-    console.log(`Tarefa ${taskId} movida para ${newStatus}`);
-    // Aqui você faria a chamada API para atualizar o status no backend
+  // Em um app real, você usaria um componente de diálogo de confirmação mais elegante.
+  if (window.confirm('Tem certeza que deseja excluir esta tarefa? Esta ação não pode ser desfeita.')) {
+    deleteTask(taskId);
   }
 };
 
+const deleteTask = (taskId: string) => {
+  const initialLength = allTasks.value.length;
+  allTasks.value = allTasks.value.filter(t => t.uuid !== taskId);
+  if (allTasks.value.length < initialLength) {
+    showSnackbar('Tarefa excluída com sucesso!', 'info');
+  } else {
+    showSnackbar('Não foi possível excluir a tarefa.', 'error');
+  }
+};
+
+
+// Função para formatar datas
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+   try {
+    const date = dateString.includes('T') ? new Date(dateString) : new Date(dateString + 'T00:00:00Z');
+    if (isNaN(date.getTime())) return 'Data inválida';
+    return date.toLocaleDateString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric'
+    });
+  } catch (e) {
+    // console.error("Erro ao formatar data:", dateString, e); // Pode ser muito verboso
+    return 'Inválida';
+  }
+};
 </script>
 
 <style scoped>
-.task-column-card {
-  /* Adiciona uma altura mínima para as colunas ficarem alinhadas mesmo vazias */
-  min-height: 400px;
-  display: flex;
-  flex-direction: column;
+.task-card {
+  cursor: pointer;
+  transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
 }
-.task-column-content {
-  flex-grow: 1;
-  overflow-y: auto; /* Permite scroll dentro da coluna se houver muitas tarefas */
-  padding-bottom: 8px; /* Espaço no final da coluna */
+.task-card:hover {
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12) !important; /* Sombra mais pronunciada no hover */
+  transform: translateY(-2px); /* Leve elevação no hover */
 }
-.space-y-3 > *:not(:last-child) {
-  margin-bottom: 12px; /* Espaçamento entre os TaskCards */
+.task-description {
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Limita a descrição a 3 linhas */
+  line-clamp: 3; /* Compatibilidade com a propriedade padrão */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: calc(1.4em * 3); /* Aproximadamente 3 linhas de texto (ajuste line-height se mudar) */
+  line-height: 1.4em; /* Ajuste conforme o tamanho da fonte */
+  font-size: 0.875rem; /* Tamanho de fonte para descrição */
+  color: rgba(var(--v-theme-on-surface), 0.6); /* Cor mais suave para descrição */
 }
-.min-h-task-column { /* Para vuedraggable, se usado */
-  min-height: 350px;
+.task-column {
+  background-color: rgba(var(--v-theme-on-surface), 0.03); /* Um pouco mais sutil */
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+  border-radius: 12px; /* Mais arredondado */
+  padding: 16px;
+  min-height: 300px; /* Para dar um visual melhor quando vazio */
+  /* Ajuste a altura para permitir scroll interno se necessário, ou deixe o layout da página controlar */
+  /* height: calc(100vh - 280px); */ /* Exemplo de altura para scroll interno */
+  /* overflow-y: auto; */ /* Habilitar scroll se a altura for fixa */
+}
+
+/* Melhorias visuais para os filtros */
+.v-card.mb-6 {
+  border-radius: 12px;
 }
 </style>

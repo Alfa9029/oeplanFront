@@ -69,8 +69,6 @@ import { useRouter } from 'vue-router'; // ou '#app' para Nuxt 3
 
 // Definição do layout (se você tiver um layout específico para login)
 definePageMeta({
-  layout: 'auth', // Ou o nome do seu layout de autenticação, se houver. Senão, pode remover.
-  middleware: ['guest'] // Exemplo: se tiver um middleware para redirecionar usuários já logados
 });
 
 const email = ref('');

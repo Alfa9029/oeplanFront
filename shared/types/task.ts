@@ -9,9 +9,9 @@ export interface Task {
   due_date?: string | null; // Formato YYYY-MM-DD ou ISO Date String
   assigned_to: SimpleUser; // Quem é o responsável pela tarefa
   assigned_by: SimpleUser; // Quem atribuiu a tarefa
-  status: 'To Do' | 'In Progress' | 'In Review' | 'Done'; // Status da tarefa
-  priority: 'Baixa' | 'Média' | 'Alta'; // Prioridade da tarefa
-  visibility: 'Pública' | 'Privada' | 'Grupo'; // Visibilidade da tarefa
+  status: TaskStatus; // Status da tarefa
+  priority: TaskPriority; // Prioridade da tarefa
+  visibility: TaskVisibility; // Visibilidade da tarefa
   tags?: string[]; // Lista de tags associadas à tarefa
   category?: string; // Categoria da tarefa (opcional)
   // Adicione outros campos que possam ser relevantes para uma tarefa
@@ -35,3 +35,7 @@ export type SimpleUser = {
   last_name: string;
   email: string;
 };
+
+export type TaskVisibility = 'Pública' | 'Privada' | 'Grupo';
+export type TaskStatus = 'To Do' | 'In Progress' | 'In Review' | 'Done';
+export type TaskPriority = 'Baixa' | 'Média' | 'Alta';

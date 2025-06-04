@@ -5,11 +5,18 @@
 import { useAuth } from '~/composables/auth';
 
 export default defineNuxtRouteMiddleware((to, from) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, logout } = useAuth();
 
   // Lista de páginas públicas que não exigem autenticação.
   // Adicione outras rotas públicas aqui se necessário (ex: /register, /forgot-password)
-  const publicPages = ['/login', '/magic-link'];
+  const publicPages = ['/login'];
+
+  // Se acessar /magic-link, sempre faz logout antes de continuar
+  if (to.path === '/magic-link' && isAuthenticated.value) {
+    logout(); // Limpa o estado de autenticação
+    // Não faz redirecionamento, permite continuar para /magic-link
+    return;
+  }
 
   // Verifica se a rota de destino (to.path) é uma rota que requer autenticação.
   const authRequired = !publicPages.includes(to.path);

@@ -43,26 +43,17 @@ const MOCK_ADMIN_USER: User = {
   role: 'Administrador',
 };
 
+// Estado reativo para o usuário logado, token, loading e erro.
+// Estes são singletons devido à forma como os composables do Vue funcionam.
 const loggedInUser = ref<User | null>(null);
 const authToken = ref<string | null>(null);
 const isLoading = ref(false);
-const error = ref<string | null>(null);
+const error = ref<string | null>(null); // Este erro é para erros gerais de autenticação
 
 export function useAuth() {
-  if (process.client) {
-    const storedToken = localStorage.getItem('authToken');
-    const storedUser = localStorage.getItem('loggedInUser');
-    if (storedToken) {
-      authToken.value = storedToken;
-    }
-    if (storedUser) {
-      try {
-        loggedInUser.value = JSON.parse(storedUser);
-      } catch (e) {
-        localStorage.removeItem('loggedInUser');
-      }
-    }
-  }
+  // A inicialização do estado de autenticação (ex: carregar do localStorage)
+  // deve ser feita preferencialmente por um plugin Nuxt (ex: plugins/auth.client.ts)
+  // para garantir que ocorra no momento certo do ciclo de vida da aplicação.
 
   const isAuthenticated = computed(() => !!loggedInUser.value && !!authToken.value);
 
@@ -73,6 +64,7 @@ export function useAuth() {
       localStorage.setItem('loggedInUser', JSON.stringify(userData));
       localStorage.setItem('authToken', tokenData);
     }
+    error.value = null; // Limpa o erro global de auth em caso de sucesso
   };
 
   const clearAuthData = () => {
@@ -84,93 +76,10 @@ export function useAuth() {
     }
   };
 
-  async function requestMagicLink(email: string): Promise<{ success: boolean; message?: string }> {
-    isLoading.value = true;
-    error.value = null;
-    if (USE_MOCK_BACKEND) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          if (email === MOCK_PROFESSOR_USER.email || email === MOCK_ADMIN_USER.email) {
-            resolve({ success: true, message: `Link (simulado) enviado para ${email}. Use token 'mock_magic_token_for_${email.split('@')[0]}'` });
-          } else {
-            error.value = 'E-mail não encontrado (mock).';
-            resolve({ success: false, message: error.value ?? undefined });
-          }
-          isLoading.value = false;
-        }, 1000);
-      });
-    } else {
-      // Lógica real omitida para brevidade (estava no código anterior)
-      return { success: false, message: "Backend real não implementado nesta versão" };
-    }
-  }
-
-  async function loginWithMagicLinkToken(token: string): Promise<{ success: boolean; user?: User; message?: string }> {
-    isLoading.value = true;
-    error.value = null;
-    if (USE_MOCK_BACKEND) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          let foundUser: User | undefined = undefined;
-          if (token === `mock_magic_token_for_${MOCK_PROFESSOR_USER.email.split('@')[0]}`) {
-            foundUser = MOCK_PROFESSOR_USER;
-          } else if (token === `mock_magic_token_for_${MOCK_ADMIN_USER.email.split('@')[0]}`) {
-            foundUser = MOCK_ADMIN_USER;
-          }
-
-          if (foundUser) {
-            setAuthData(foundUser, `jwt_mock_token_${foundUser.role.toLowerCase()}_${Date.now()}`);
-            resolve({ success: true, user: foundUser, message: 'Login Magic Link (simulado) OK!' });
-          } else {
-            error.value = 'Token inválido (mock).';
-            clearAuthData();
-            resolve({ success: false, message: error.value ?? undefined });
-          }
-          isLoading.value = false;
-        }, 1500);
-      });
-    } else {
-      // Lógica real omitida
-      return { success: false, message: "Backend real não implementado nesta versão" };
-    }
-  }
-
-  async function loginAdmin(credentials: UserLogin): Promise<{ success: boolean; user?: User; message?: string }> {
-    isLoading.value = true;
-    error.value = null;
-    if (USE_MOCK_BACKEND) {
-      return new Promise(resolve => {
-        setTimeout(() => {
-          if (credentials.username === MOCK_ADMIN_USER.email && credentials.password === 'admin123') {
-            setAuthData(MOCK_ADMIN_USER, `jwt_mock_token_admin_${Date.now()}`);
-            resolve({ success: true, user: MOCK_ADMIN_USER, message: 'Login Admin (simulado) OK!' });
-          } else {
-            error.value = 'Credenciais inválidas (mock).';
-            clearAuthData();
-            resolve({ success: false, message: error.value ?? undefined });
-          }
-          isLoading.value = false;
-        }, 1000);
-      });
-    } else {
-      // Lógica real omitida
-      return { success: false, message: "Backend real não implementado nesta versão" };
-    }
-  }
-
-  async function logout() {
-    isLoading.value = true;
-    error.value = null;
-    // Lógica de logout omitida para brevidade (estava no código anterior)
-    clearAuthData();
-    isLoading.value = false;
-    if (process.client) await navigateTo('/login');
-  }
-
+  // Função para inicializar o estado de autenticação
+  // Chamada pelo plugin auth.client.ts
   async function initializeAuth() {
-    // Esta é a versão que tinha a chamada automática no final do composable
-    // e uma lógica de inicialização mais simples.
-    console.log(`[AuthV1] initializeAuth chamada. Mock: ${USE_MOCK_BACKEND}. Client: ${process.client}`);
+    console.log(`[AuthV2] initializeAuth chamada. Mock: ${USE_MOCK_BACKEND}. Client: ${process.client}`);
     if (!process.client) return;
 
     if (USE_MOCK_BACKEND) {
@@ -179,32 +88,149 @@ export function useAuth() {
         if (localToken && localUserStr) {
             try {
                 const localUser = JSON.parse(localUserStr) as User;
+                // Valida se o usuário local é um dos usuários mockados conhecidos
                 if ((localUser.email === MOCK_PROFESSOR_USER.email || localUser.email === MOCK_ADMIN_USER.email)) {
-                    loggedInUser.value = localUser;
-                    authToken.value = localToken;
-                } else { clearAuthData(); }
-            } catch (e) { clearAuthData(); }
-        } else { clearAuthData(); }
+                    loggedInUser.value = localUser; // Restaura o usuário
+                    authToken.value = localToken;   // Restaura o token
+                } else {
+                    // Se o usuário armazenado não for reconhecido, limpa os dados.
+                    console.warn("[AuthV2] Usuário local não reconhecido, limpando dados de auth.");
+                    clearAuthData();
+                }
+            } catch (e) {
+                console.error("[AuthV2] Erro ao parsear usuário do localStorage:", e);
+                clearAuthData();
+            }
+        } else {
+            // Se não houver token ou usuário no localStorage, garante que o estado esteja limpo.
+            clearAuthData();
+        }
     } else {
-      // Lógica real omitida
+      // Lógica para backend real (se aplicável no futuro)
+      // Ex: validar token com o backend, buscar dados do usuário
+      // Se o token for inválido ou não existir, chamar clearAuthData()
+      console.log("[AuthV2] Lógica de backend real para initializeAuth não implementada.");
+      // clearAuthData(); // Exemplo se não houver token válido
     }
   }
 
-  // Chamada automática que foi removida posteriormente
-  if (process.client) {
-    initializeAuth();
+  async function requestMagicLink(email: string): Promise<MagicLinkRequestResponse> {
+    isLoading.value = true;
+    error.value = null; // Limpa erro global de auth
+    let response: MagicLinkRequestResponse;
+
+    if (USE_MOCK_BACKEND) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay
+      if (email === MOCK_PROFESSOR_USER.email || email === MOCK_ADMIN_USER.email) {
+        response = { success: true, message: `Link mágico (simulado) enviado para ${email}. Use o token: 'mock_magic_token_for_${email.split('@')[0]}'` };
+      } else {
+        const errorMessage = 'E-mail não encontrado (mock).';
+        error.value = errorMessage; // Define erro global de auth
+        response = { success: false, message: errorMessage };
+      }
+    } else {
+      // Lógica real de backend aqui
+      response = { success: false, message: "Backend real para Magic Link não implementado." };
+      error.value = response.message ?? null;
+    }
+    isLoading.value = false;
+    return response;
   }
+
+  async function loginWithMagicLinkToken(token: string): Promise<MagicLinkVerifyResponse> {
+    isLoading.value = true;
+    error.value = null;
+    let response: MagicLinkVerifyResponse;
+
+    if (USE_MOCK_BACKEND) {
+      await new Promise(resolve => setTimeout(resolve, 1500)); // Simula delay
+      let foundUser: User | undefined = undefined;
+      if (token === `mock_magic_token_for_${MOCK_PROFESSOR_USER.email.split('@')[0]}`) {
+        foundUser = MOCK_PROFESSOR_USER;
+      } else if (token === `mock_magic_token_for_${MOCK_ADMIN_USER.email.split('@')[0]}`) {
+        foundUser = MOCK_ADMIN_USER;
+      }
+
+      if (foundUser) {
+        setAuthData(foundUser, `jwt_mock_token_${foundUser.role.toLowerCase()}_${Date.now()}`);
+        response = { success: true, user: foundUser, message: 'Login com Magic Link (simulado) bem-sucedido!' };
+      } else {
+        const errorMessage = 'Token de Magic Link inválido (mock).';
+        error.value = errorMessage;
+        clearAuthData();
+        response = { success: false, message: errorMessage };
+      }
+    } else {
+      // Lógica real de backend aqui
+      response = { success: false, message: "Backend real para verificar Magic Link não implementado." };
+      error.value = response.message ?? null;
+      clearAuthData();
+    }
+    isLoading.value = false;
+    return response;
+  }
+
+  async function loginAdmin(credentials: UserLogin): Promise<LoginResponse> {
+    isLoading.value = true;
+    error.value = null; // Limpa o erro global de auth no início da tentativa de login
+    let response: LoginResponse;
+
+    if (USE_MOCK_BACKEND) {
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simula delay da rede
+      if (credentials.username === MOCK_ADMIN_USER.email && credentials.password === 'admin123') {
+        setAuthData(MOCK_ADMIN_USER, `jwt_mock_token_admin_${Date.now()}`);
+        response = { success: true, user: MOCK_ADMIN_USER, message: 'Login de Admin (simulado) bem-sucedido!' };
+      } else {
+        const errorMessage = 'Credenciais inválidas (mock).';
+        // error.value = errorMessage; // O erro específico da tentativa de login é retornado na mensagem da resposta.
+                                 // O 'error.value' global pode ser usado para erros mais genéricos de auth.
+        clearAuthData(); // Garante que nenhum estado de login persista se as credenciais estiverem erradas.
+        response = { success: false, message: errorMessage };
+      }
+    } else {
+      // Lógica para backend real aqui
+      // Ex: const apiResponse = await $fetch('/api/login', { method: 'POST', body: credentials });
+      // if (apiResponse.success) { ... } else { ... }
+      const errorMessage = "Backend real para login de Admin não implementado.";
+      error.value = errorMessage; // Define o erro global de auth
+      clearAuthData();
+      response = { success: false, message: errorMessage };
+    }
+    isLoading.value = false;
+    return response;
+  }
+
+  async function logout() {
+    isLoading.value = true;
+    // Não há necessidade de definir error.value aqui, pois o logout geralmente não falha.
+    // Se houvesse uma chamada de API para invalidar o token no backend,
+    // o tratamento de erro seria relevante.
+    clearAuthData();
+    isLoading.value = false;
+    if (process.client) {
+      // Redireciona para a página de login após o logout.
+      // O middleware 'authenticated' também pode ajudar a lidar com redirecionamentos
+      // se o usuário tentar acessar páginas protegidas sem estar logado.
+      await navigateTo('/login');
+    }
+  }
+
+  // REMOVIDO: A chamada initializeAuth() não deve estar aqui,
+  // pois o plugin auth.client.ts já cuida disso.
+  // if (process.client) {
+  //   initializeAuth();
+  // }
 
   return {
     loggedInUser,
     authToken,
     isAuthenticated,
     isLoading,
-    error,
+    error, // Este é o erro global de autenticação
     requestMagicLink,
     loginWithMagicLinkToken,
     loginAdmin,
     logout,
-    initializeAuth,
+    initializeAuth, // Exporta para ser usado pelo plugin
   };
 }

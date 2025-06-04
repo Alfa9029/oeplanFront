@@ -14,7 +14,6 @@
 <script setup lang="ts">
 definePageMeta({
   layout: 'default',
-  middleware: ['authenticated']
 });
 useHead({
   title: 'Arquivadas - OEPlan',

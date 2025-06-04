@@ -57,8 +57,7 @@ import { useRoute, useRouter } from 'vue-router'; // ou '#app' para Nuxt 3
 // import type { User } from '~/shared/types/auth/user'; // Ajuste o caminho
 
 // Definição do layout (se você tiver um layout específico para autenticação)
-definePageMeta({
-  layout: 'auth', // Ou o nome do seu layout de autenticação, se houver. Senão, pode remover.
+definePageMeta({ // Ou o nome do seu layout de autenticação, se houver. Senão, pode remover.
 });
 
 const route = useRoute();

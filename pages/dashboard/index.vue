@@ -145,7 +145,6 @@ import { useRouter } from 'vue-router';
 import { useAuth } from '~/composables/auth';
 
 definePageMeta({
-  middleware: ['authenticated'],
   layout: 'default',
 });
 

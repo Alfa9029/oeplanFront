@@ -109,16 +109,24 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import type { Group } from '~/shared/types/group';
-import type { SimpleUser } from '~/shared/types/auth/user';
-import GroupCard from '~/components/GroupCard.vue';
-import CreateGroupForm from '~/components/CreateGroupForm.vue';
+// Ajuste o caminho abaixo para o local correto do arquivo group.ts ou group.d.ts
+// Ajuste o caminho abaixo para o local correto do arquivo group.ts ou group.d.ts
+import type { Group } from '~/shared/types/group.ts'; // Exemplo: '~/shared/types/group' ou o caminho correto do seu projeto
+// Ajuste o caminho abaixo para o local correto do arquivo user.ts/user.d.ts
+// Ajuste o caminho abaixo para o local correto do arquivo user.ts/user.d.ts
+import type { SimpleUser } from '~/shared/types/auth/user.ts'; // Exemplo: '~/shared/types/user.d' ou o caminho correto do seu projeto
+import GroupCard from '../../components/GroupCard.vue';
+import CreateGroupForm from '../../components/CreateGroupForm.vue';
 import { useRouter } from 'vue-router';
-import { useAuth } from '~/composables/auth';
-import { MOCK_GROUPS, allMockSimpleUsers } from '~/shared/data/mockData'; // Importa os dados mockados
+// import { useAuth } from '~/composables/auth';
+// Corrija o caminho abaixo conforme a localização real do seu composable de autenticação:
+import { useAuth } from '@/composables/auth';
+// Se o arquivo não existir, crie-o ou ajuste para o caminho correto, por exemplo:
+// import { useAuth } from '../../composables/auth';
+// Ajuste o caminho abaixo conforme a localização real do arquivo mockData.ts/js
+import { MOCK_GROUPS, allMockSimpleUsers } from '../../shared/data/mockData'; // Importa os dados mockados
 
 definePageMeta({
-  middleware: ['authenticated'],
   layout: 'default',
 });
 
@@ -127,7 +135,7 @@ useHead({
 });
 
 const router = useRouter();
-const { state: authState } = useAuth();
+const { loggedInUser } = useAuth();
 
 const groupDialog = ref(false);
 const editingGroup = ref<Group | null>(null);
@@ -140,7 +148,7 @@ const allGroups = ref<Group[]>([]);
 onMounted(() => {
   // Carrega os grupos mockados quando o componente é montado
   // É importante clonar os dados mockados para evitar mutações diretas no array original importado
-  allGroups.value = MOCK_GROUPS.map(g => ({
+  allGroups.value = MOCK_GROUPS.map((g: Group) => ({
       ...g,
       owner: allMockSimpleUsers.find(u => u.uuid === g.owner_uuid) || undefined
   }));
@@ -198,7 +206,7 @@ const closeGroupDialog = () => {
 };
 
 const handleGroupSaved = (savedGroup: Group) => {
-  const currentUser = authState.value.user as SimpleUser | undefined;
+  const currentUser = loggedInUser.value as SimpleUser | undefined;
   if (editingGroup.value && editingGroup.value.uuid === savedGroup.uuid) { // Editando
     const index = allGroups.value.findIndex(g => g.uuid === savedGroup.uuid);
     if (index !== -1) {

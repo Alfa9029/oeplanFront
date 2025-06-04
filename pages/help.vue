@@ -19,8 +19,7 @@
 
 // Define metadados da página, como o layout a ser usado.
 definePageMeta({
-  layout: 'default', // Certifique-se de que você tem 'layouts/default.vue'
-  middleware: ['authenticated'] // Se esta página requer que o usuário esteja logado
+  layout: 'default', // Certifique-se de que você tem 'layouts/default.vue' // Se esta página requer que o usuário esteja logado
 });
 
 // Define o título da página que aparecerá na aba do navegador.

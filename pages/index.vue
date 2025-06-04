@@ -56,7 +56,7 @@ import { useRouter } from 'vue-router';
 
 // Aplica o middleware de autenticação para proteger esta página
 definePageMeta({
-  middleware: ['authenticated']
+
 });
 
 const { loggedInUser, isAuthenticated, authToken, logout, isLoading } = useAuth();

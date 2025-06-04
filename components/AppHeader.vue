@@ -32,13 +32,15 @@
     </v-btn>
 
     <!-- Menu do Usuário -->
-    <v-menu offset-y>
+    <!-- Renderiza o menu apenas se o usuário estiver autenticado -->
+    <v-menu v-if="isAuthenticated" offset-y>
       <template v-slot:activator="{ props }">
         <v-btn icon v-bind="props" class="ml-2" title="Menu do Usuário">
           <v-avatar color="primary" size="36">
-            <!-- Pode ser a inicial do usuário ou uma imagem -->
-            <span class="white--text text-subtitle-1">{{ userInitials }}</span>
-            <!-- <img src="https://placehold.co/40x40/E2E8F0/4A5568?text=U" alt="Avatar"> -->
+            <!-- Exibe as iniciais do usuário se disponíveis -->
+            <span v-if="userInitials" class="white--text text-subtitle-1">{{ userInitials }}</span>
+            <!-- Ícone padrão caso as iniciais não estejam disponíveis -->
+            <v-icon v-else>mdi-account</v-icon>
           </v-avatar>
         </v-btn>
       </template>
@@ -53,44 +55,63 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { useTheme } from 'vuetify';
 import { useAuth } from '~/composables/auth'; // Seu composable de autenticação
-import { useRouter } from 'vue-router';
+// useRouter e navigateTo são auto-importados no Nuxt 3
 
 const emit = defineEmits(['toggleNavigationDrawer']);
 const theme = useTheme();
-const router = useRouter();
-const { state: authState, logout } = useAuth(); // Assumindo que seu useAuth expõe 'state' e 'logout'
+// const router = useRouter(); // Não é estritamente necessário se usar navigateTo
+
+// Corrigido: Obtém loggedInUser, isAuthenticated e logout diretamente do useAuth
+const { loggedInUser, isAuthenticated, logout } = useAuth();
 
 const isDark = computed(() => theme.global.current.value.dark);
 
 const toggleTheme = () => {
   theme.global.name.value = theme.global.current.value.dark ? 'light' : 'dark';
+  // Opcional: Salvar preferência de tema no localStorage
+  if (process.client) {
+    localStorage.setItem('themePreference', theme.global.name.value);
+  }
 };
 
+// Propriedade computada para as iniciais do usuário
 const userInitials = computed(() => {
-  const user = authState.value.user;
+  // Acessa loggedInUser.value para obter o objeto do usuário
+  const user = loggedInUser.value;
   if (user && user.first_name && user.last_name) {
     return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
   }
-  return 'U'; // Padrão
+  // Retorna null ou um valor padrão se o usuário não estiver logado ou não tiver nome/sobrenome
+  // Isso evita o erro ao tentar acessar propriedades de 'undefined'
+  return null; // Ou 'U' como padrão se preferir sempre mostrar algo no avatar
 });
 
 const handleLogout = async () => {
   await logout();
-  router.push('/login'); // Ou sua página de login
+  // Usa navigateTo para redirecionamento no Nuxt 3
+  await navigateTo('/login');
 };
+
+// Opcional: Carregar preferência de tema ao montar o componente
+// if (process.client) {
+//   const savedTheme = localStorage.getItem('themePreference');
+//   if (savedTheme) {
+//     theme.global.name.value = savedTheme;
+//   }
+// }
 </script>
 
 <style scoped>
 .search-field {
   max-width: 300px; /* Limita a largura do campo de pesquisa */
 }
-.primary--text {
+.primary--text { /* Para o título OEPlan */
   color: rgb(var(--v-theme-primary));
 }
-.white--text {
-  color: rgb(var(--v-theme-on-primary)); /* Cor de texto para usar sobre a cor primária */
+.white--text { /* Para as iniciais no avatar */
+  color: rgb(var(--v-theme-on-primary)); /* Cor de texto para usar sobre a cor primária do tema */
 }
 </style>

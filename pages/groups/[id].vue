@@ -187,7 +187,7 @@ import { useAuth } from '~/composables/auth';
 
 definePageMeta({
   layout: 'default',
-  middleware: ['authenticated']
+
 });
 
 const route = useRoute();

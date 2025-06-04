@@ -79,7 +79,7 @@ import { useRouter } from 'vue-router';
 // import { useAuth } from '~/composables/auth';
 
 definePageMeta({
-  layout: 'empty', // Layout sem header/sidebar
+  layout: false, // Layout sem header/sidebar
 });
 useHead({
   title: 'Cadastro - OEPlan',

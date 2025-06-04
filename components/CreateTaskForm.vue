@@ -12,7 +12,7 @@
               <v-text-field
                 v-model="formData.title"
                 label="Título da Tarefa*"
-                :rules="[rules.required, rules.minLength(formData.title, 3)]"
+                :rules="[rules.required, rules.minLength(formData.title ?? '', 3)]"
                 variant="outlined"
                 density="comfortable"
                 autofocus
@@ -27,7 +27,7 @@
                 density="comfortable"
                 rows="4"
                 counter="255"
-                :rules="[rules.maxLength(formData.description, 255)]"
+                :rules="[rules.maxLength(formData.description ?? '', 255)]"
               ></v-textarea>
             </v-col>
 
@@ -139,7 +139,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'task-saved']);
 
-const { state: authState } = useAuth(); // Para obter o utilizador logado como assigned_by
+const { loggedInUser } = useAuth(); // Para obter o utilizador logado como assigned_by
 
 const formRef = ref<any>(null); // Referência ao v-form para validação
 const loading = ref(false);
@@ -208,7 +208,7 @@ const submitForm = async () => {
   if (valid) {
     loading.value = true;
     const assignedToUser = props.usersList.find(u => u.uuid === formData.assigned_to_uuid);
-    const currentUser = authState.value.user as SimpleUser; // Utilizador logado
+    const currentUser = loggedInUser.value as SimpleUser; // Utilizador logado
 
     if (!assignedToUser || !currentUser) {
       console.error("Utilizador responsável ou criador não encontrado/logado.");

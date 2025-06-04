@@ -12,7 +12,7 @@
               <v-text-field
                 v-model="formData.title"
                 label="Título do Grupo*"
-                :rules="[rules.required, rules.minLength(formData.title, 3)]"
+                :rules="[rules.required, rules.minLength(formData.title ?? '', 3)]"
                 variant="outlined"
                 density="comfortable"
                 autofocus
@@ -30,7 +30,7 @@
                 rows="3"
                 counter="500"
                 maxlength="500"
-                :rules="[rules.maxLength(formData.description, 500)]"
+                :rules="[rules.maxLength(formData.description ?? '', 500)]"
               ></v-textarea>
             </v-col>
 
@@ -128,7 +128,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'group-saved']);
 
-const { state: authState } = useAuth(); // Para obter o utilizador logado
+const { loggedInUser } = useAuth(); // Para obter o utilizador logado
 
 const formRef = ref<any>(null); // Referência ao v-form para validação
 const loading = ref(false);
@@ -145,7 +145,7 @@ const defaultFormData = (): Partial<Group> & { owner_uuid?: string } => ({
   category: '',
   visibility: 'Privada', // Visibilidade padrão
   tags: [],
-  owner_uuid: authState.value.user?.uuid, // Proprietário padrão é o utilizador logado
+  owner_uuid: loggedInUser.value?.uuid, // Proprietário padrão é o utilizador logado
   // participants_emails: [], // Para os emails dos participantes
 });
 
@@ -160,6 +160,11 @@ const rules = {
   required: (value: any) => !!value || 'Campo obrigatório.',
   minLength: (value: string, min: number) => (value && value.length >= min) || `Mínimo de ${min} caracteres.`,
   maxLength: (value: string, max: number) => (!value || value.length <= max) || `Máximo de ${max} caracteres.`,
+  email: (value: string) => {
+    if (!value) return true; // Permite campo vazio se não for obrigatório
+    const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return pattern.test(value) || 'E-mail inválido.';
+  },
 };
 
 // Observa mudanças nos dados iniciais para preencher o formulário em modo de edição
@@ -192,7 +197,7 @@ const submitForm = async () => {
 
   if (valid) {
     loading.value = true;
-    const currentUser = authState.value.user;
+    const currentUser = loggedInUser.value;
 
     if (!currentUser) {
         console.error("Utilizador não está logado. Não é possível criar/editar grupo.");
@@ -237,12 +242,8 @@ const submitForm = async () => {
 // Adiciona fullName aos utilizadores para exibição no v-select (se for usar para proprietário)
 // const usersListForSelect = computed(() => {
 //   return props.usersList.map(user => ({
-//     ...user,
-//     fullName: `${user.first_name} ${user.last_name}`
-//   }));
-// });
-
 // Regra de validação de e-mail (exemplo simples)
+// (Já incluída dentro do objeto rules acima)
 rules.email = (value: string) => {
   if (!value) return true; // Permite campo vazio se não for obrigatório
   const pattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

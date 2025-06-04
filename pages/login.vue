@@ -102,7 +102,7 @@ import { useAuth } from '~/composables/auth'; // Caminho para seu composable de 
 import type { UserLogin } from '~/shared/types/auth/user-login'; // Tipo para as credenciais
 
 definePageMeta({
-  layout: 'empty', // Layout sem header/sidebar padrão
+  layout: 'default', // Use o layout padrão ou defina como false se não quiser layout
 });
 useHead({
   title: 'Login - OEPlan',

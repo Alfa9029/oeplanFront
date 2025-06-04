@@ -124,7 +124,7 @@ import { useAuth } from '@/composables/auth';
 // Se o arquivo não existir, crie-o ou ajuste para o caminho correto, por exemplo:
 // import { useAuth } from '../../composables/auth';
 // Ajuste o caminho abaixo conforme a localização real do arquivo mockData.ts/js
-import { MOCK_GROUPS, allMockSimpleUsers } from '../../shared/data/mockData'; // Importa os dados mockados
+import { MOCK_GROUPS, allMockSimpleUsers } from '~/shared/data/mockData'; // Importa os dados mockados
 
 definePageMeta({
   layout: 'default',
